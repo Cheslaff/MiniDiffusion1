@@ -15,7 +15,7 @@ def sample_timestep(n):
 beta_start = 0.0001
 beta_end = 0.02
 
-betas = torch.linspace(start=beta_start, end=beta_end, steps=timesteps)  # (t,)
+betas = torch.linspace(start=beta_start, end=beta_end, steps=timesteps).to(device)  # (t,)
 alphas = 1 - betas  # (t,)
 alphas_hat = torch.cumprod(alphas, dim=0)  # (t,)
 
@@ -31,9 +31,10 @@ def add_noise(x, t):
 def sample(model, n):
   model.eval()
   with torch.no_grad():
-    x = torch.randn(n, 3, img_size, img_size)
+    x = torch.randn(n, 3, img_size, img_size).to(device)
     for i in tqdm(reversed(range(1, timesteps))):
       t = (torch.ones(n) * i).long().to(device)
+      
       alpha_t = alphas[t].view(-1, 1, 1, 1)
       alpha_hat_t = alphas_hat[t].view(-1, 1, 1, 1)
       beta_t = betas[t].view(-1, 1, 1, 1)
