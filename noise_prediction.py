@@ -3,6 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 import matplotlib.pyplot as plt
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 class Down(nn.Module):
     def __init__(self, c_in, c_out, time_emb_dim=256):
@@ -92,11 +93,12 @@ class SelfAttention(nn.Module):
         # x is (b, c, H, W). For MHA need a (B, T, C) format
         x = x.view(-1, self.channels, self.im_size * self.im_size).swapaxes(1, 2)  # (B, T, C)
         attn_scores, _ = self.mha(x, x, x)
-        attn_scores = attn_scores + x
+        # attn_scores = attn_scores + x
         out = self.mlp(attn_scores)
-        out = out.view(-1, self.channels, self.im_size, self.im_size).swapaxes(1, 2)  # (b, c, H, W)
+        out = out.swapaxes(1, 2).view(-1, self.channels, self.im_size, self.im_size)  # (b, c, H, W)
         return out
-        
+
+
 
 class UNet(nn.Module):
     def __init__(self, time_emb_dim=256):
@@ -122,7 +124,7 @@ class UNet(nn.Module):
         self.time_emb_dim = time_emb_dim
 
     def time_embedding(self, t):
-        inv_freqs = 1.0 / (1_000 ** (torch.arange(0, self.time_emb_dim, 2, device="cuda").float() / self.time_emb_dim))
+        inv_freqs = 1.0 / (1_000 ** (torch.arange(0, self.time_emb_dim, 2, device=device).float() / self.time_emb_dim))
         sin_rep = torch.sin(t.repeat(1, self.time_emb_dim // 2) * inv_freqs)
         cos_rep = torch.cos(t.repeat(1, self.time_emb_dim // 2) * inv_freqs)
         return torch.cat([sin_rep, cos_rep], dim=-1)
@@ -144,16 +146,16 @@ class UNet(nn.Module):
         y_6 = self.sa_4(y_6)
 
         y_7 = self.up_1(y_6, skip_3, t)
-        y_7 = self.sa_5(y_6)
+        y_7 = self.sa_5(y_7)
         y_8 = self.up_2(y_7, skip_2, t)
         y_9 = self.up_3(y_8, skip_1, t)
         out = self.out(y_9)
         return out
 
 
-model = UNet().to("cuda")
-sample_input = torch.randn((8, 3, 64, 64)).to("cuda")
-times = torch.randint(1, 1_000, (8,)).to("cuda")
+model = UNet().to(device)
+sample_input = torch.randn((8, 3, 64, 64)).to(device)
+times = torch.randint(1, 1_000, (8,)).to(device)
 sample_output = model(sample_input, times)
 print(sample_output.shape)
 plt.imshow(sample_output[0].cpu().detach().squeeze(0).permute(1, 2, 0))
