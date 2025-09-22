@@ -93,7 +93,7 @@ class SelfAttention(nn.Module):
         # x is (b, c, H, W). For MHA need a (B, T, C) format
         x = x.view(-1, self.channels, self.im_size * self.im_size).swapaxes(1, 2)  # (B, T, C)
         attn_scores, _ = self.mha(x, x, x)
-        # attn_scores = attn_scores + x
+        attn_scores = attn_scores + x
         out = self.mlp(attn_scores)
         out = out.swapaxes(1, 2).view(-1, self.channels, self.im_size, self.im_size)  # (b, c, H, W)
         return out
@@ -151,12 +151,3 @@ class UNet(nn.Module):
         y_9 = self.up_3(y_8, skip_1, t)
         out = self.out(y_9)
         return out
-
-
-model = UNet().to(device)
-sample_input = torch.randn((8, 3, 64, 64)).to(device)
-times = torch.randint(1, 1_000, (8,)).to(device)
-sample_output = model(sample_input, times)
-print(sample_output.shape)
-plt.imshow(sample_output[0].cpu().detach().squeeze(0).permute(1, 2, 0))
-plt.show()
